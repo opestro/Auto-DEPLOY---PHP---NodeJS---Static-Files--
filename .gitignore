@@ -1,2 +1,3 @@
 node_modules/
-.cscc-deploy/ 
+.cscc-deploy/
+.cscc-ignore
