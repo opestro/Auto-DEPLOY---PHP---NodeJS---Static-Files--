@@ -1,0 +1,23 @@
+{
+  "name": "web-deployer",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "web-deploy": "./src/index.js"
+  },
+  "dependencies": {
+    "basic-ftp": "latest",
+    "boxen": "^8.0.1",
+    "chalk": "latest",
+    "commander": "latest",
+    "dotenv": "latest",
+    "figlet": "^1.8.0",
+    "fs-extra": "latest",
+    "glob": "^11.0.0",
+    "gradient-string": "^3.0.0",
+    "ignore": "^6.0.2",
+    "inquirer": "latest",
+    "node-ssh": "latest",
+    "ora": "latest"
+  }
+}

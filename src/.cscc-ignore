@@ -1,0 +1,28 @@
+# CSCC Auto-Deploy Ignore File
+
+# Ignore node modules
+node_modules/
+
+# Ignore version control
+.git/
+
+# Ignore CSCC deploy files
+.cscc-deploy/
+
+# Ignore system files
+.DS_Store
+thumbs.db
+
+# Ignore logs
+*.log
+
+# Ignore environment files
+.env
+
+# Add your custom ignore patterns below
+# Example:
+# dist/
+# build/
+# *.tmp 
+
+page1.html
