@@ -1,3 +1,5 @@
 node_modules/
 .cscc-deploy/
 .cscc-ignore
+.ssh/id_rsa
+Project/

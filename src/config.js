@@ -1,19 +1,22 @@
 import fs from 'fs-extra';
 import path from 'path';
-import os from 'os';
 
-const CONFIG_DIR = path.join(os.homedir(), '.web-deployer');
-const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+const CONFIG_DIR = '.cscc-deploy';
+const CONFIG_FILE = 'config.json';
 
 export const saveConfig = async (config) => {
-  await fs.ensureDir(CONFIG_DIR);
-  await fs.writeJSON(CONFIG_FILE, config, { spaces: 2 });
+  const configDir = path.resolve(process.cwd(), CONFIG_DIR);
+  const configFile = path.join(configDir, CONFIG_FILE);
+  await fs.ensureDir(configDir);
+  await fs.writeJSON(configFile, config, { spaces: 2 });
 };
 
 export const loadConfig = async () => {
   try {
-    return await fs.readJSON(CONFIG_FILE);
+    const configDir = path.resolve(process.cwd(), CONFIG_DIR);
+    const configFile = path.join(configDir, CONFIG_FILE);
+    return await fs.readJSON(configFile);
   } catch (error) {
     return null;
   }
-}; 
+};

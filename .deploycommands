@@ -1,0 +1,19 @@
+# Deployment commands in Docker-like syntax
+# Commands will be executed in order in the remote directory
+
+# Change working directory if needed
+WORKDIR ./adem
+
+# Run git commands
+RUN git clone https://github.com/opestro/csdeploy-landingPage.git
+
+# Copy files to public_html (use -f to force overwrite if needed)
+# COPY ./csdeploy-landingPage/* ./adem
+
+# Or use MOVE to move the files instead of copying
+MOVE ./csdeploy-landingPage/* ./adem/
+
+# Setup commands (uncomment if needed)
+# RUN cd public_html
+# RUN npm install
+# RUN npm run build

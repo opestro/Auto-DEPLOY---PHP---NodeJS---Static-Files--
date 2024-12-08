@@ -5,8 +5,16 @@ node_modules/
 test/
 docs/
 assets/
+.ssh/
+id_rsa
+.ssh/*
+.cscc-deploy/
+.cscc-deploy/*
+.cscc-ignore
+Project/
 .gitignore
 .npmrc
 .eslintrc
 .prettierrc
 *.log 
+.deploycommands

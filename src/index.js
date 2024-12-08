@@ -17,6 +17,7 @@ import boxen from 'boxen';
 import { FileTracker } from './fileTracker.js';
 import {glob} from 'glob';
 import { IgnoreHandler } from './ignoreHandler.js';
+import { CommandRunner } from './commandRunner.js';
 
 // Fix __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -28,90 +29,107 @@ program
   .version('1.0.0')
   .description('Web project deployment CLI for cPanel/Hostinger');
 
-async function deployViaFTP(config, spinner) {
+async function deployViaFTP(config, spinner, deploymentType = 'both') {
   const client = new ftp.Client();
   const fileTracker = new FileTracker(path.resolve(config.localPath));
   const ignoreHandler = new IgnoreHandler(path.resolve(config.localPath));
+  const commandRunner = new CommandRunner(path.resolve(config.localPath), config.remotePath);
+  let commandResult = null;
 
   try {
-    await ignoreHandler.loadIgnoreFile();
-    spinner.start('Checking for modified files...');
-    const { changedFiles, newHashes } = await fileTracker.findChangedFiles();
+    // Handle file deployment if requested
+    if (deploymentType === 'files' || deploymentType === 'both') {
+      await ignoreHandler.loadIgnoreFile();
+      spinner.start('Checking for modified files...');
+      const { changedFiles, newHashes } = await fileTracker.findChangedFiles();
 
-    // Filter out ignored files
-    const filesToUpload = changedFiles.filter(file => !ignoreHandler.isIgnored(file));
-    const ignoredFiles = changedFiles.filter(file => ignoreHandler.isIgnored(file));
+      // Filter out ignored files
+      const filesToUpload = changedFiles.filter(file => !ignoreHandler.isIgnored(file));
+      const ignoredFiles = changedFiles.filter(file => ignoreHandler.isIgnored(file));
 
-    if (filesToUpload.length === 0) {
-      spinner.succeed('No files to deploy (all changed files are ignored or no changes)');
-      return;
+      if (filesToUpload.length === 0) {
+        spinner.succeed('No files to deploy (all changed files are ignored or no changes)');
+      } else {
+        // Connect and deploy files
+        spinner.start('Connecting to FTP server...');
+        await client.access({
+          host: config.host,
+          user: config.username,
+          password: config.password,
+          secure: config.secure
+        });
+
+        // Upload non-ignored files
+        for (const file of filesToUpload) {
+          spinner.start(`Uploading ${file}...`);
+          const localPath = path.join(config.localPath, file);
+          const remotePath = path.join(config.remotePath, file);
+          
+          // Ensure remote directory exists
+          await client.ensureDir(path.dirname(remotePath));
+          await client.uploadFrom(localPath, remotePath);
+        }
+
+        // Only update hashes for non-ignored files
+        const updatedHashes = {};
+        for (const [file, hash] of Object.entries(newHashes)) {
+          if (!ignoreHandler.isIgnored(file)) {
+            updatedHashes[file] = hash;
+          }
+        }
+        await fileTracker.updateTrackedFiles(updatedHashes);
+
+        spinner.succeed(`Successfully deployed ${filesToUpload.length} files`);
+        
+        // Show deployment summary
+        console.log(
+          boxen(
+            chalk.cyan('Deployed Files:\n') +
+            filesToUpload.map(file => chalk.green(`✔ ${file}`)).join('\n') +
+            (ignoredFiles.length > 0 ? 
+              '\n\n' + chalk.yellow('Ignored Files:\n') +
+              ignoredFiles.map(file => chalk.gray(`• ${file}`)).join('\n') : ''),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'green',
+              title: 'Deployment Summary',
+              titleAlignment: 'center'
+            }
+          )
+        );
+      }
     }
 
-    if (ignoredFiles.length > 0) {
+    // Handle command execution if requested
+    if (deploymentType === 'commands' || deploymentType === 'both') {
+      spinner.start('Executing post-deployment commands...');
+      commandResult = await commandRunner.executeCommands(client, false);
+      if (!commandResult.success) {
+        console.log(chalk.yellow('Note: Command execution over FTP is limited. Consider using SSH for full command execution support.'));
+      }
+    }
+
+    // Final summary
+    if (deploymentType === 'commands' || deploymentType === 'both') {
       console.log(
         boxen(
-          chalk.yellow('Skipped Ignored Files:\n') +
-          ignoredFiles.map(f => chalk.gray(`• ${f}`)).join('\n'),
+          chalk.green('Deployment completed successfully!') + '\n\n' +
+          chalk.cyan('Summary:') + '\n' +
+          (deploymentType === 'files' || deploymentType === 'both' ? chalk.white(`• Files deployed: ${filesToUpload?.length || 0}`) + '\n' : '') +
+          (deploymentType === 'commands' || deploymentType === 'both' ? chalk.white(`• Commands executed: ${commandResult?.results?.length || 0}`) : ''),
           {
             padding: 1,
             margin: 1,
             borderStyle: 'round',
-            borderColor: 'yellow',
-            title: 'Ignored Files',
+            borderColor: 'green',
+            title: 'Deployment Complete',
             titleAlignment: 'center'
           }
         )
       );
     }
-
-    spinner.start('Connecting to FTP server...');
-    await client.access({
-      host: config.host,
-      user: config.username,
-      password: config.password,
-      secure: config.secure
-    });
-
-    // Upload non-ignored files
-    for (const file of filesToUpload) {
-      spinner.start(`Uploading ${file}...`);
-      const localPath = path.join(config.localPath, file);
-      const remotePath = path.join(config.remotePath, file);
-      
-      // Ensure remote directory exists
-      await client.ensureDir(path.dirname(remotePath));
-      await client.uploadFrom(localPath, remotePath);
-    }
-
-    // Only update hashes for non-ignored files
-    const updatedHashes = {};
-    for (const [file, hash] of Object.entries(newHashes)) {
-      if (!ignoreHandler.isIgnored(file)) {
-        updatedHashes[file] = hash;
-      }
-    }
-    await fileTracker.updateTrackedFiles(updatedHashes);
-
-    spinner.succeed(`Successfully deployed ${filesToUpload.length} files`);
-    
-    // Show deployment summary
-    console.log(
-      boxen(
-        chalk.cyan('Deployed Files:\n') +
-        filesToUpload.map(file => chalk.green(`✔ ${file}`)).join('\n') +
-        (ignoredFiles.length > 0 ? 
-          '\n\n' + chalk.yellow('Ignored Files:\n') +
-          ignoredFiles.map(file => chalk.gray(`• ${file}`)).join('\n') : ''),
-        {
-          padding: 1,
-          margin: 1,
-          borderStyle: 'round',
-          borderColor: 'green',
-          title: 'Deployment Summary',
-          titleAlignment: 'center'
-        }
-      )
-    );
 
   } catch (error) {
     throw error;
@@ -120,39 +138,15 @@ async function deployViaFTP(config, spinner) {
   }
 }
 
-async function deployViaSSH(config, spinner) {
+async function deployViaSSH(config, spinner, deploymentType = 'both') {
   const ssh = new NodeSSH();
   const fileTracker = new FileTracker(path.resolve(config.localPath));
+  const ignoreHandler = new IgnoreHandler(path.resolve(config.localPath));
+  const commandRunner = new CommandRunner(path.resolve(config.localPath), config.remotePath);
+  let deployableFiles = [];
+  let commandResult = null;
 
   try {
-    spinner.start('Analyzing files for deployment...');
-    
-    // Get files that should be deployed
-    const { deployableFiles, ignoredFiles, newHashes } = await fileTracker.getDeployableFiles();
-
-    // Log ignored files
-    if (ignoredFiles.length > 0) {
-      console.log(
-        boxen(
-          chalk.yellow('Ignored Files (will not be deployed):\n') +
-          ignoredFiles.map(f => chalk.gray(`• ${f}`)).join('\n'),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: 'round',
-            borderColor: 'yellow',
-            title: 'Skipped Files',
-            titleAlignment: 'center'
-          }
-        )
-      );
-    }
-
-    if (deployableFiles.length === 0) {
-      spinner.succeed('No files to deploy (all files are either ignored or unchanged)');
-      return;
-    }
-
     // Connect to SSH
     spinner.start('Connecting to SSH server...');
     const sshConfig = {
@@ -165,56 +159,115 @@ async function deployViaSSH(config, spinner) {
     await ssh.connect(sshConfig);
     spinner.succeed('Connected to SSH server');
 
-    // Deploy each file
-    for (const file of deployableFiles) {
-      spinner.start(`Deploying ${file}...`);
+    // Handle file deployment if requested
+    if (deploymentType === 'files' || deploymentType === 'both') {
+      spinner.start('Analyzing files for deployment...');
       
-      // Double-check ignore status before deploying each file
-      const shouldIgnore = await fileTracker.shouldIgnoreFile(file);
-      if (shouldIgnore) {
-        spinner.info(`Skipping ignored file: ${file}`);
-        continue;
+      // Get files that should be deployed
+      const { deployableFiles: files, ignoredFiles, newHashes } = await fileTracker.getDeployableFiles();
+
+      // Log ignored files
+      if (ignoredFiles.length > 0) {
+        console.log(
+          boxen(
+            chalk.yellow('Ignored Files (will not be deployed):\n') +
+            ignoredFiles.map(f => chalk.gray(`• ${f}`)).join('\n'),
+            {
+              padding: 1,
+              margin: 1,
+              borderStyle: 'round',
+              borderColor: 'yellow',
+              title: 'Skipped Files',
+              titleAlignment: 'center'
+            }
+          )
+        );
       }
 
-      const localPath = path.join(config.localPath, file);
-      const remotePath = path.join(config.remotePath, file);
-      
-      // Ensure remote directory exists
-      const remoteDir = path.dirname(remotePath);
-      await ssh.execCommand(`mkdir -p "${remoteDir}"`);
-      
-      // Upload file
-      await ssh.putFile(localPath, remotePath);
-      spinner.succeed(`Deployed ${file}`);
-    }
+      if (files.length === 0) {
+        spinner.succeed('No files to deploy (all files are either ignored or unchanged)');
+      } else {
+        // Deploy each file
+        for (const file of files) {
+          spinner.start(`Deploying ${file}...`);
+          
+          // Double-check ignore status before deploying each file
+          const shouldIgnore = await fileTracker.shouldIgnoreFile(file);
+          if (shouldIgnore) {
+            spinner.info(`Skipping ignored file: ${file}`);
+            continue;
+          }
 
-    // Update tracking only for deployed files
-    const deployedHashes = {};
-    for (const file of deployableFiles) {
-      if (newHashes[file]) {
-        deployedHashes[file] = newHashes[file];
+          const localPath = path.join(config.localPath, file);
+          const remotePath = path.join(config.remotePath, file);
+          
+          // Ensure remote directory exists
+          const remoteDir = path.dirname(remotePath);
+          await ssh.execCommand(`mkdir -p "${remoteDir}"`);
+          
+          // Upload file
+          await ssh.putFile(localPath, remotePath);
+          spinner.succeed(`Deployed ${file}`);
+        }
+
+        // Update tracking only for deployed files
+        const deployedHashes = {};
+        for (const file of files) {
+          if (newHashes[file]) {
+            deployedHashes[file] = newHashes[file];
+          }
+        }
+        await fileTracker.updateTrackedFiles(deployedHashes);
+        spinner.succeed(`Successfully deployed ${files.length} files`);
       }
     }
-    await fileTracker.updateTrackedFiles(deployedHashes);
+
+    // Handle command execution if requested
+    if (deploymentType === 'commands' || deploymentType === 'both') {
+      spinner.start('Executing post-deployment commands...');
+      commandResult = await commandRunner.executeCommands(ssh, true);
+      
+      if (commandResult.success) {
+        spinner.succeed('Post-deployment commands executed successfully');
+        if (commandResult.results) {
+          commandResult.results.forEach(result => {
+            console.log(chalk.cyan(`Command: ${result.command}`));
+            if (result.output) {
+              console.log(chalk.gray(result.output));
+            }
+          });
+        }
+      } else {
+        spinner.fail('Some post-deployment commands failed');
+        commandResult.results.forEach(result => {
+          const status = result.success ? chalk.green('✓') : chalk.red('✗');
+          console.log(`${status} ${result.command}`);
+          if (!result.success && result.output) {
+            console.log(chalk.red(result.output));
+          }
+        });
+      }
+    }
 
     // Final summary
     console.log(
       boxen(
-        chalk.cyan('Successfully Deployed:\n') +
-        deployableFiles.map(f => chalk.green(`✔ ${f}`)).join('\n'),
+        chalk.green('Deployment completed successfully!') + '\n\n' +
+        chalk.cyan('Summary:') + '\n' +
+        (deploymentType === 'files' || deploymentType === 'both' ? chalk.white(`• Files deployed: ${files.length}`) + '\n' : '') +
+        (deploymentType === 'commands' || deploymentType === 'both' ? chalk.white(`• Commands executed: ${commandResult?.results?.length || 0}`) : ''),
         {
           padding: 1,
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-          title: 'Deployment Summary',
+          title: 'Deployment Complete',
           titleAlignment: 'center'
         }
       )
     );
 
   } catch (error) {
-    spinner.fail(`Deployment failed: ${error.message}`);
     throw error;
   } finally {
     ssh.dispose();
@@ -229,138 +282,180 @@ async function verifyDeployment(config) {
 }
 
 async function promptForDeployment() {
-  const fileTracker = new FileTracker(process.cwd());
-  const savedConfig = await fileTracker.loadConfig();
-  
-  // First prompt for connection type
-  const connectionType = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'type',
-      message: 'Select connection type:',
-      choices: ['FTP', 'SFTP/SSH'],
-      default: savedConfig?.type || 'SFTP/SSH'
-    }
-  ]);
+  try {
+    showBanner();
+    
+    // Load existing config
+    let config = await loadConfig();
 
-  if (savedConfig) {
-    const useExisting = await inquirer.prompt([
+    if (!config) {
+      // Prompt for initial configuration
+      const fileTracker = new FileTracker(process.cwd());
+      const savedConfig = await fileTracker.loadConfig();
+      
+      // First prompt for connection type
+      const connectionType = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'type',
+          message: 'Select connection type:',
+          choices: ['FTP', 'SFTP/SSH'],
+          default: savedConfig?.type || 'SFTP/SSH'
+        }
+      ]);
+
+      if (savedConfig) {
+        const useExisting = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'useSaved',
+            message: 'Use saved configuration?',
+            default: true
+          }
+        ]);
+
+        if (useExisting.useSaved) {
+          return savedConfig;
+        }
+      }
+
+      let answers;
+      if (connectionType.type === 'SFTP/SSH') {
+        const sshQuestions = [
+          {
+            type: 'input',
+            name: 'privateKey',
+            message: 'Enter path to private key (e.g., ~/.ssh/id_rsa):',
+            default: savedConfig?.privateKey || '~/.ssh/id_rsa'
+          },
+          {
+            type: 'input',
+            name: 'username',
+            message: 'Enter SSH username:',
+            default: savedConfig?.username || process.env.DEPLOY_USERNAME
+          },
+          {
+            type: 'input',
+            name: 'host',
+            message: 'Enter host (e.g., yourdomain.com):',
+            default: savedConfig?.host || process.env.DEPLOY_HOST
+          },
+          {
+            type: 'input',
+            name: 'remotePath',
+            message: 'Enter remote path (e.g., public_html/):',
+            default: savedConfig?.remotePath || 'public_html/'
+          },
+          {
+            type: 'input',
+            name: 'localPath',
+            message: 'Enter local project path:',
+            default: savedConfig?.localPath || './'
+          },
+          {
+            type: 'password',
+            name: 'passphrase',
+            message: 'Enter key passphrase (leave empty if none):',
+            mask: '*'
+          }
+        ];
+
+        answers = await inquirer.prompt(sshQuestions);
+        answers.privateKey = answers.privateKey.replace(/^~/, process.env.HOME || process.env.USERPROFILE);
+      } else {
+        const ftpQuestions = [
+          {
+            type: 'input',
+            name: 'host',
+            message: 'Enter host (e.g., yourdomain.com):',
+            default: process.env.DEPLOY_HOST
+          },
+          {
+            type: 'input',
+            name: 'username',
+            message: 'Enter username:',
+            default: process.env.DEPLOY_USERNAME
+          },
+          {
+            type: 'input',
+            name: 'remotePath',
+            message: 'Enter remote path (e.g., public_html/):',
+            default: 'public_html/'
+          },
+          {
+            type: 'input',
+            name: 'localPath',
+            message: 'Enter local project path:',
+            default: './'
+          },
+          {
+            type: 'password',
+            name: 'password',
+            message: 'Enter FTP password:',
+            mask: '*'
+          },
+          {
+            type: 'confirm',
+            name: 'secure',
+            message: 'Use secure FTP (FTPS)?',
+            default: true
+          }
+        ];
+
+        answers = await inquirer.prompt(ftpQuestions);
+      }
+
+      answers.type = connectionType.type;
+
+      // Ask if user wants to save this configuration
+      const savePrompt = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'save',
+          message: 'Save this configuration for future use?',
+          default: true
+        }
+      ]);
+
+      if (savePrompt.save) {
+        await fileTracker.saveConfig(answers);
+      }
+
+      return answers;
+    }
+
+    // Create spinner
+    const spinner = ora({
+      text: 'Starting deployment...',
+      spinner: 'dots',
+      color: 'cyan'
+    });
+
+    // Ask for deployment type
+    const { deploymentType } = await inquirer.prompt([
       {
-        type: 'confirm',
-        name: 'useSaved',
-        message: 'Use saved configuration?',
-        default: true
+        type: 'list',
+        name: 'deploymentType',
+        message: 'What would you like to deploy?',
+        choices: [
+          { name: 'Files only', value: 'files' },
+          { name: 'Run commands only', value: 'commands' },
+          { name: 'Both files and commands', value: 'both' }
+        ]
       }
     ]);
 
-    if (useExisting.useSaved) {
-      return savedConfig;
+    // Modify deployment functions to handle deployment type
+    if (config.type === 'FTP') {
+      await deployViaFTP(config, spinner, deploymentType);
+    } else {
+      await deployViaSSH(config, spinner, deploymentType);
     }
+
+  } catch (error) {
+    console.error(chalk.red('Error deploying:'), error.message);
+    process.exit(1);
   }
-
-  let answers;
-  if (connectionType.type === 'SFTP/SSH') {
-    const sshQuestions = [
-      {
-        type: 'input',
-        name: 'privateKey',
-        message: 'Enter path to private key (e.g., ~/.ssh/id_rsa):',
-        default: savedConfig?.privateKey || '~/.ssh/id_rsa'
-      },
-      {
-        type: 'input',
-        name: 'username',
-        message: 'Enter SSH username:',
-        default: savedConfig?.username || process.env.DEPLOY_USERNAME
-      },
-      {
-        type: 'input',
-        name: 'host',
-        message: 'Enter host (e.g., yourdomain.com):',
-        default: savedConfig?.host || process.env.DEPLOY_HOST
-      },
-      {
-        type: 'input',
-        name: 'remotePath',
-        message: 'Enter remote path (e.g., public_html/):',
-        default: savedConfig?.remotePath || 'public_html/'
-      },
-      {
-        type: 'input',
-        name: 'localPath',
-        message: 'Enter local project path:',
-        default: savedConfig?.localPath || './'
-      },
-      {
-        type: 'password',
-        name: 'passphrase',
-        message: 'Enter key passphrase (leave empty if none):',
-        mask: '*'
-      }
-    ];
-
-    answers = await inquirer.prompt(sshQuestions);
-    answers.privateKey = answers.privateKey.replace(/^~/, process.env.HOME || process.env.USERPROFILE);
-  } else {
-    const ftpQuestions = [
-      {
-        type: 'input',
-        name: 'host',
-        message: 'Enter host (e.g., yourdomain.com):',
-        default: process.env.DEPLOY_HOST
-      },
-      {
-        type: 'input',
-        name: 'username',
-        message: 'Enter username:',
-        default: process.env.DEPLOY_USERNAME
-      },
-      {
-        type: 'input',
-        name: 'remotePath',
-        message: 'Enter remote path (e.g., public_html/):',
-        default: 'public_html/'
-      },
-      {
-        type: 'input',
-        name: 'localPath',
-        message: 'Enter local project path:',
-        default: './'
-      },
-      {
-        type: 'password',
-        name: 'password',
-        message: 'Enter FTP password:',
-        mask: '*'
-      },
-      {
-        type: 'confirm',
-        name: 'secure',
-        message: 'Use secure FTP (FTPS)?',
-        default: true
-      }
-    ];
-
-    answers = await inquirer.prompt(ftpQuestions);
-  }
-
-  answers.type = connectionType.type;
-
-  // Ask if user wants to save this configuration
-  const savePrompt = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'save',
-      message: 'Save this configuration for future use?',
-      default: true
-    }
-  ]);
-
-  if (savePrompt.save) {
-    await fileTracker.saveConfig(answers);
-  }
-
-  return answers;
 }
 
 program
@@ -368,21 +463,7 @@ program
   .description('Deploy your web project')
   .action(async () => {
     try {
-      // Show the banner
-      showBanner();
-      
-      const config = await promptForDeployment();
-      const spinner = ora({
-        text: 'Starting deployment...',
-        color: 'cyan'
-      }).start();
-
-      if (config.type === 'FTP') {
-        await deployViaFTP(config, spinner);
-      } else {
-        await deployViaSSH(config, spinner);
-      }
-
+      await promptForDeployment();
     } catch (error) {
       console.error(chalk.red('Deployment failed:'), error.message);
       process.exit(1);
@@ -473,7 +554,8 @@ program
         { name: 'Private Key Path', value: 'privateKey' },
         { name: 'Remote Path', value: 'remotePath' },
         { name: 'Local Path', value: 'localPath' },
-        { name: 'Connection Type', value: 'type' }
+        { name: 'Connection Type', value: 'type' },
+        { name: 'SSH Key Passphrase', value: 'passphrase' }
       ];
 
       const { field } = await inquirer.prompt([
@@ -494,6 +576,16 @@ program
             message: 'Select connection type:',
             choices: ['FTP', 'SFTP/SSH'],
             default: config.type
+          }
+        ]);
+        newValue = response.value;
+      } else if (field === 'passphrase') {
+        const response = await inquirer.prompt([
+          {
+            type: 'password',
+            name: 'value',
+            message: 'Enter new SSH key passphrase:',
+            mask: '*'
           }
         ]);
         newValue = response.value;
@@ -558,6 +650,12 @@ program
         spinner.info('.cscc-ignore file already exists');
       }
 
+      // Create .deploycommands template
+      const commandsCreated = await CommandRunner.createTemplate(process.cwd());
+      if (commandsCreated) {
+        console.log(chalk.green('✓ Created .deploycommands template file'));
+      }
+
       // Ensure deploy folder exists
       await fs.ensureDir(fileTracker.deployFolder);
       spinner.succeed('Initialized CSCC Auto-Deploy successfully!');
@@ -566,7 +664,8 @@ program
         boxen(
           chalk.cyan('Created:') + '\n' +
           chalk.white('- .cscc-ignore (Deployment ignore patterns)') + '\n' +
-          chalk.white('- .cscc-deploy/ (Deployment tracking)') + '\n\n' +
+          chalk.white('- .cscc-deploy/ (Deployment tracking)') + '\n' +
+          chalk.white('- .deploycommands (Post-deployment commands)') + '\n\n' +
           chalk.cyan('Next steps:') + '\n' +
           chalk.white('1. Edit .cscc-ignore to customize ignored files') + '\n' +
           chalk.white('2. Run "web-deploy deploy" to start deployment'),
