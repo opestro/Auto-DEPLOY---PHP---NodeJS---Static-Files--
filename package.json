@@ -1,6 +1,6 @@
 {
   "name": "csdeploy",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Fast, Secure, and Modern Web Deployment CLI Tool",
   "main": "src/index.js",
   "type": "module",
