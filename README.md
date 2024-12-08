@@ -45,7 +45,7 @@ npm install -g csdeploy
 Create a new configuration:
 
 ```bash
-cscc init
+csdeploy init
 ```
 
 This will create:
@@ -73,7 +73,7 @@ MOVE ./build/* ./public/
 ### Basic Deployment
 
 ```bash
-cscc deploy
+csdeploy deploy
 ```
 
 Choose your deployment type:
@@ -84,13 +84,13 @@ Choose your deployment type:
 ### Edit Configuration
 
 ```bash
-cscc edit
+csdeploy edit
 ```
 
 ### View Deployment Status
 
 ```bash
-cscc status
+csdeploy status
 ```
 
 ## 🔧 Configuration Options
