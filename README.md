@@ -3,7 +3,7 @@
 # 🚀 CSCC AUTO-DEPLOY
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.1.2-brightgreen.svg)](package.json)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D%2014.0.0-green.svg)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
@@ -62,11 +62,11 @@ Streamline your web deployment process with support for FTP, SFTP, and SSH.
 ### Installation
 
 ```bash
-# Using npm
-npm install -g web-deploy
+# Using npm (globally)
+npm install -g csdeploy
 
-# Using yarn
-yarn global add web-deploy
+# Using yarn (globally)
+yarn global add csdeploy
 ```
 
 ## 📖 Usage
@@ -76,29 +76,29 @@ yarn global add web-deploy
 1. Initialize your project:
 
 ```bash
-web-deploy init
+csdeploy init
 ```
 
 2. Configure deployment settings:
 
 ```bash
-web-deploy config
+csdeploy config
 ```
 
 3. Deploy your project:
 
 ```bash
-web-deploy deploy
+csdeploy deploy
 ```
 
 ### Available Commands
 
 ```bash
-web-deploy init         # Initialize project configuration
-web-deploy config      # Manage deployment configurations
-web-deploy deploy      # Deploy your web project
-web-deploy status      # Show tracking information
-web-deploy check-ignore # Check ignore patterns
+csdeploy init         # Initialize project configuration
+csdeploy config      # Manage deployment configurations
+csdeploy deploy      # Deploy your web project
+csdeploy status      # Show tracking information
+csdeploy check-ignore # Check ignore patterns
 ```
 
 ## 🔧 Configuration
@@ -129,17 +129,17 @@ node_modules/
 
 ### Command Details
 
-#### `web-deploy init`
+#### `csdeploy init`
 - Initializes project configuration
 - Creates necessary files and folders
 - Sets up ignore patterns
 
-#### `web-deploy config`
+#### `csdeploy config`
 - Manages deployment configurations
 - Supports multiple environments
 - Secure credential storage
 
-#### `web-deploy deploy`
+#### `csdeploy deploy`
 - Smart file deployment
 - Progress tracking
 - Error handling

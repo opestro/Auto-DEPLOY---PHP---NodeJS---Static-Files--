@@ -1,0 +1,12 @@
+.git/
+.github/
+.vscode/
+node_modules/
+test/
+docs/
+assets/
+.gitignore
+.npmrc
+.eslintrc
+.prettierrc
+*.log 

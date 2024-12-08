@@ -3,9 +3,997 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>CSCC Auto-Deploy | Modern Web Deployment CLI Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script async src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cyber-pink': '#05D9E8',
+                        'cyber-blue': '#05D9E8',
+                        'cyber-purple': '#7700FF',
+                        'cyber-dark': '#1A1A2E',
+                        'cyber-darker': '#15152D',
+                        primary: '#1A1A2E',
+                        secondary: '#15152D',
+                        accent: '#05D9E8',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #0a192f 0%, #112240 100%);
+            --accent-green: #64ffda;
+            --text-primary: #e6f1ff;
+            --text-secondary: #8892b0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--primary-gradient);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Navigation */
+        nav {
+            padding: 1.5rem 0;
+            backdrop-filter: blur(10px);
+            position: fixed;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-primary);
+            text-decoration: none;
+            margin-left: 2rem;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-green);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-content {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #64ffda, #48bfe3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 5px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--accent-green);
+            color: #0a192f;
+        }
+
+        .btn-secondary {
+            border: 2px solid var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 6rem 0;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: rgba(17, 34, 64, 0.5);
+            padding: 2rem;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 255, 218, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Footer */
+        footer {
+            background: rgba(10, 25, 47, 0.9);
+            padding: 4rem 0;
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .footer-section h3 {
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+        }
+
+        .footer-section a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-section a:hover {
+            color: var(--accent-green);
+        }
+
+        .floating-elements {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .floating-icon {
+            position: absolute;
+            left: var(--x);
+            top: var(--y);
+            animation: float 6s ease-in-out infinite;
+            animation-delay: var(--delay);
+            filter: drop-shadow(0 0 15px rgba(100, 255, 218, 0.3));
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+        }
+
+        /* Add glowing effect */
+        .floating-icon::after {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            background: radial-gradient(circle, rgba(100, 255, 218, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        /* Glowing Lines */
+        .glowing-line-1, .glowing-line-2 {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+            animation: glow-line 8s linear infinite;
+        }
+
+        .glowing-line-1 {
+            width: 50%;
+            top: 20%;
+            left: -50%;
+        }
+
+        .glowing-line-2 {
+            width: 30%;
+            top: 60%;
+            right: -30%;
+            animation-delay: -4s;
+        }
+
+        @keyframes glow-line {
+            0% {
+                transform: translateX(0%);
+            }
+            100% {
+                transform: translateX(200%);
+            }
+        }
+
+        /* Typing Animation */
+        .typing-animation {
+            display: inline-block;
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 3s steps(30) infinite;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: var(--accent-green);
+            margin-left: 2px;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes typing {
+            0%, 90%, 100% {
+                width: 0;
+            }
+            30%, 60% {
+                width: 100%;
+            }
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Enhanced Button Hover Effects */
+        .btn-primary:hover {
+            box-shadow: 0 0 20px var(--accent-green);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+            transform: translateY(-2px);
+        }
+
+        @keyframes slide-right {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(100%); }
+        }
+
+        @keyframes slide-left {
+            from { transform: translateX(100%); }
+            to { transform: translateX(-100%); }
+        }
+
+        .animate-slide-right {
+            animation: slide-right 8s linear infinite;
+        }
+
+        .animate-slide-left {
+            animation: slide-left 8s linear infinite;
+        }
+
+        /* Grid background animation */
+        .animate-pulse {
+            animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.5; }
+        }
+
+        .cyber-glitch {
+            text-shadow: 
+                0.05em 0 0 rgba(255,42,109,0.75),
+                -0.025em -0.05em 0 rgba(5,217,232,0.75),
+                0.025em 0.05em 0 rgba(119,0,255,0.75);
+            animation: glitch 500ms infinite;
+        }
+
+        .cyber-grid {
+            background-image: 
+                linear-gradient(rgba(5,217,232,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(5,217,232,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        @keyframes glitch {
+            0% {
+                text-shadow: 
+                    0.05em 0 0 rgba(255,42,109,0.75),
+                    -0.05em -0.025em 0 rgba(5,217,232,0.75),
+                    -0.025em 0.05em 0 rgba(119,0,255,0.75);
+            }
+            14% {
+                text-shadow: 
+                    0.05em 0 0 rgba(255,42,109,0.75),
+                    -0.05em -0.025em 0 rgba(5,217,232,0.75),
+                    -0.025em 0.05em 0 rgba(119,0,255,0.75);
+            }
+            15% {
+                text-shadow: 
+                    -0.05em -0.025em 0 rgba(255,42,109,0.75),
+                    0.025em 0.025em 0 rgba(5,217,232,0.75),
+                    -0.05em -0.05em 0 rgba(119,0,255,0.75);
+            }
+            49% {
+                text-shadow: 
+                    -0.05em -0.025em 0 rgba(255,42,109,0.75),
+                    0.025em 0.025em 0 rgba(5,217,232,0.75),
+                    -0.05em -0.05em 0 rgba(119,0,255,0.75);
+            }
+            50% {
+                text-shadow: 
+                    0.025em 0.05em 0 rgba(255,42,109,0.75),
+                    0.05em 0 0 rgba(5,217,232,0.75),
+                    0 -0.05em 0 rgba(119,0,255,0.75);
+            }
+            99% {
+                text-shadow: 
+                    0.025em 0.05em 0 rgba(255,42,109,0.75),
+                    0.05em 0 0 rgba(5,217,232,0.75),
+                    0 -0.05em 0 rgba(119,0,255,0.75);
+            }
+            100% {
+                text-shadow: 
+                    -0.025em 0 0 rgba(255,42,109,0.75),
+                    -0.025em -0.025em 0 rgba(5,217,232,0.75),
+                    -0.025em -0.05em 0 rgba(119,0,255,0.75);
+            }
+        }
+    </style>
 </head>
 <body>
-    HELLO DEPLOYMENT DONE 1
+    <!-- Navigation -->
+    <nav class="fixed w-full bg-primary/40 backdrop-blur-md z-50 border-b border-accent/10">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center">
+                 <img src="./assets/logo.png" width="60" />   <span class="text-2xl font-bold">CSCC Deploy</span>
+                </div>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-center space-x-8">
+                        <a href="#features" class="nav-link text-gray-300 hover:text-accent transition-colors">Features</a>
+                        <a href="#quickstart" class="nav-link text-gray-300 hover:text-accent transition-colors">Quick Start</a>
+                        <a href="#faq" class="nav-link text-gray-300 hover:text-accent transition-colors">FAQ</a>
+                        <a href="#contact" class="nav-link text-gray-300 hover:text-accent transition-colors">Contact</a>
+                        <a href="https://github.com/opestro/csdeploy" 
+                           class="bg-accent/10 text-accent px-4 py-2 rounded-lg hover:bg-accent/20 transition-colors">
+                            GitHub
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-gray-300 hover:text-accent focus:outline-none">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-primary/95 backdrop-blur-lg border-t border-accent/10">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="#features" class="block px-3 py-2 text-gray-300 hover:text-accent transition-colors">Features</a>
+                <a href="#quickstart" class="block px-3 py-2 text-gray-300 hover:text-accent transition-colors">Quick Start</a>
+                <a href="#faq" class="block px-3 py-2 text-gray-300 hover:text-accent transition-colors">FAQ</a>
+                <a href="#contact" class="block px-3 py-2 text-gray-300 hover:text-accent transition-colors">Contact</a>
+                <a href="https://github.com/opestro/csdeploy" 
+                   class="block px-3 py-2 text-accent hover:bg-accent/10 rounded-lg transition-colors">
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero min-h-screen relative overflow-hidden bg-cyber-dark cyber-grid">
+        <div class="absolute inset-0 bg-gradient-to-b from-cyber-purple/20 to-cyber-dark/90"></div>
+        
+        <!-- Animated lines -->
+        <div class="absolute inset-0">
+            <div class="absolute h-px w-full top-1/4 bg-gradient-to-r from-transparent via-cyber-blue to-transparent animate-slide-right"></div>
+            <div class="absolute h-px w-full top-2/4 bg-gradient-to-r from-transparent via-cyber-pink to-transparent animate-slide-left"></div>
+            <div class="absolute h-px w-full top-3/4 bg-gradient-to-r from-transparent via-cyber-purple to-transparent animate-slide-right"></div>
+        </div>
+
+        <div class="container mx-auto px-4 relative z-10 pt-32">
+            <!-- Updated Title and Description -->
+            <div class="max-w-4xl mx-auto text-center mb-16">
+                <h1 class="text-5xl md:text-7xl font-bold mb-6">
+                    <span class="cyber-glitch bg-clip-text text-transparent bg-gradient-to-r from-cyber-pink to-cyber-blue">
+                        Deploy in Seconds
+                    </span>
+                    <span class="block text-3xl md:text-4xl mt-4 text-cyber-blue/80 font-normal">
+                        Not Hours
+                    </span>
+                </h1>
+                
+                <p class="text-xl md:text-2xl text-gray-400 mb-8 leading-relaxed max-w-3xl mx-auto">
+                    Automated deployment tool that handles your FTP, SFTP, and SSH deployments 
+                    with a single command. Built for developers who value speed and simplicity.
+                </p>
+                
+                <!-- Key Features Pills -->
+                <div class="flex flex-wrap justify-center gap-4 mb-12">
+                    <span class="px-4 py-2 rounded-full bg-cyber-pink/10 text-cyber-pink border border-cyber-pink/20 text-sm">
+                        Zero Configuration
+                    </span>
+                    <span class="px-4 py-2 rounded-full bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/20 text-sm">
+                        Multi-Protocol Support
+                    </span>
+                    <span class="px-4 py-2 rounded-full bg-cyber-purple/10 text-cyber-purple border border-cyber-purple/20 text-sm">
+                        Instant Rollbacks
+                    </span>
+                </div>
+            </div>
+
+            <!-- Terminal with Installation Command -->
+            <div class="max-w-2xl mx-auto mb-12">
+                <div class="bg-cyber-darker/90 rounded-lg border border-cyber-pink/30 overflow-hidden backdrop-blur-xl">
+                    <div class="flex items-center justify-between px-4 py-2 bg-cyber-purple/20 border-b border-cyber-pink/20">
+                        <div class="flex items-center">
+                            <div class="flex space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-cyber-pink"></div>
+                                <div class="w-3 h-3 rounded-full bg-cyber-blue"></div>
+                                <div class="w-3 h-3 rounded-full bg-cyber-purple"></div>
+                            </div>
+                            <span class="ml-4 text-sm text-cyber-blue">Quick Install</span>
+                        </div>
+                        <span class="text-xs text-cyber-pink/60">Ready in 5 seconds</span>
+                    </div>
+                    <div class="p-4 font-mono">
+                        <div class="flex items-center text-cyber-blue group">
+                            <span class="text-cyber-pink group-hover:animate-pulse">$</span>
+                            <span class="ml-2 typing-animation">npm install -g csdeploy</span>
+                            <span class="cursor">|</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call to Action Buttons -->
+            <div class="flex flex-wrap justify-center gap-6">
+                <a href="https://github.com/opestro/web-deploy" 
+                   class="group relative px-8 py-3 bg-transparent border border-cyber-pink text-cyber-pink rounded-lg overflow-hidden hover:text-white transition-colors duration-300">
+                    <span class="relative z-10">Start Deploying</span>
+                    <div class="absolute inset-0 bg-gradient-to-r from-cyber-pink to-cyber-purple transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
+                </a>
+                <a href="#docs" 
+                   class="px-8 py-3 bg-cyber-pink/10 text-cyber-pink rounded-lg hover:bg-cyber-pink/20 transition-colors duration-300 border border-cyber-pink/30">
+                    Read Documentation
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-gradient-to-b from-primary to-secondary">
+        <div class="container mx-auto px-4">
+            <h2 class="text-4xl font-bold text-center text-white mb-16">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-accent to-blue-400">
+                    Powerful Features
+                </span>
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature Card 1 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 hover:transform hover:-translate-y-2 transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">Multiple Protocol Support</h3>
+                    <p class="text-gray-400">
+                        Deploy via FTP, SFTP, or SSH with automatic protocol detection and secure connections.
+                    </p>
+                    <!-- Glowing border effect -->
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-accent/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+
+                <!-- Feature Card 2 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 hover:transform hover:-translate-y-2 transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">Security First</h3>
+                    <p class="text-gray-400">
+                        Secure credential handling, SSH key authentication, and encrypted configuration storage.
+                    </p>
+                    <!-- Glowing border effect -->
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-accent/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+
+                <!-- Feature Card 3 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 hover:transform hover:-translate-y-2 transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">Smart File Management</h3>
+                    <p class="text-gray-400">
+                        Intelligent file tracking, change detection, and selective deployment with ignore patterns support.
+                    </p>
+                    <!-- Glowing border effect -->
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-accent/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+
+                <!-- New Feature Card 4 -->
+                <div class="group bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:transform hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-4 
+                                group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">
+                        Advanced Security
+                    </h3>
+                    <p class="text-gray-400">
+                        Enterprise-grade security with SSH key management, encrypted credentials, and secure token handling.
+                    </p>
+                </div>
+
+                <!-- New Feature Card 5 -->
+                <div class="group bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:transform hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-4 
+                                group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">
+                        Automated Rollbacks [SOON]
+                    </h3>
+                    <p class="text-gray-400">
+                        Automatic version tracking and instant rollback capabilities ensure zero-downtime deployments.
+                    </p>
+                </div>
+
+                <!-- New Feature Card 6 -->
+                <div class="group bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:transform hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-4 
+                                group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">
+                        CI/CD Integration [SOON]
+                    </h3>
+                    <p class="text-gray-400">
+                        Seamless integration with popular CI/CD platforms for automated deployment workflows.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start Section -->
+    <section id="quickstart" class="py-20 bg-primary relative overflow-hidden">
+        <!-- Animated background grid -->
+        <div class="absolute inset-0 grid grid-cols-8 grid-rows-8 gap-4 opacity-10">
+            <div class="col-span-1 row-span-1 bg-accent/20 rounded animate-pulse"></div>
+            <!-- Add more grid items for background effect -->
+        </div>
+
+        <div class="container mx-auto px-4 relative z-10">
+            <h2 class="text-4xl font-bold text-center text-white mb-16">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-accent to-blue-400">
+                    Quick Start Guide
+                </span>
+            </h2>
+
+            <div class="max-w-3xl mx-auto space-y-8">
+                <!-- Step 1 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 transform hover:-translate-x-2 transition-all duration-300 group">
+                    <h3 class="text-xl font-semibold text-accent mb-4 flex items-center">
+                        <span class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">1</span>
+                        Installation
+                    </h3>
+                    <div class="bg-gray-900/80 p-4 rounded-lg group-hover:bg-gray-900/90 transition-colors">
+                        <code class="text-gray-300 flex items-center">
+                            <span class="text-accent mr-2">$</span>
+                            npm install -g csdeploy
+                        </code>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 transform hover:-translate-x-2 transition-all duration-300 group">
+                    <h3 class="text-xl font-semibold text-accent mb-4 flex items-center">
+                        <span class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">2</span>
+                        Initialize Project
+                    </h3>
+                    <div class="bg-gray-900/80 p-4 rounded-lg group-hover:bg-gray-900/90 transition-colors">
+                        <code class="text-gray-300 flex items-center">
+                            <span class="text-accent mr-2">$</span>
+                            csdeploy init
+                        </code>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 transform hover:-translate-x-2 transition-all duration-300 group">
+                    <h3 class="text-xl font-semibold text-accent mb-4 flex items-center">
+                        <span class="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">3</span>
+                        Deploy
+                    </h3>
+                    <div class="bg-gray-900/80 p-4 rounded-lg group-hover:bg-gray-900/90 transition-colors">
+                        <code class="text-gray-300 flex items-center">
+                            <span class="text-accent mr-2">$</span>
+                            csdeploy deploy
+                        </code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="py-20 bg-gradient-to-b from-primary to-secondary relative overflow-hidden">
+        <!-- Animated lines background -->
+        <div class="absolute inset-0">
+            <div class="absolute h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent w-full top-1/4 animate-slide-right"></div>
+            <div class="absolute h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent w-full top-2/4 animate-slide-left"></div>
+            <div class="absolute h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent w-full top-3/4 animate-slide-right"></div>
+        </div>
+
+        <div class="container mx-auto px-4 relative z-10">
+            <h2 class="text-4xl font-bold text-center text-white mb-16">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-accent to-blue-400">
+                    Frequently Asked Questions
+                </span>
+            </h2>
+
+            <div class="max-w-3xl mx-auto space-y-6">
+                <!-- FAQ Item -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 hover:border-accent/30 transition-colors group">
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">What protocols are supported?</h3>
+                    <p class="text-gray-400">
+                        CSCC Auto-Deploy supports FTP, SFTP, and SSH protocols with automatic detection.
+                    </p>
+                    <!-- Hover glow effect -->
+                    <div class="absolute inset-0 rounded-xl bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+
+                <!-- New FAQ Item 4 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:border-accent/30 transition-colors group">
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">
+                        How does the rollback feature work?
+                    </h3>
+                    <p class="text-gray-400">
+                        CSCC Auto-Deploy maintains a version history of your deployments. If issues arise, you can instantly revert to any previous version using a single command: 'csdeploy rollback'.
+                    </p>
+                </div>
+
+                <!-- New FAQ Item 5 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:border-accent/30 transition-colors group">
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">
+                        Can I use it with my CI/CD pipeline?
+                    </h3>
+                    <p class="text-gray-400">
+                        Yes! CSCC Auto-Deploy integrates seamlessly with popular CI/CD platforms like GitHub Actions, GitLab CI, and Jenkins through our CLI interface and configuration files.
+                    </p>
+                </div>
+
+                <!-- New FAQ Item 6 -->
+                <div class="bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:border-accent/30 transition-colors group">
+                    <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-accent transition-colors">
+                        What about environment variables and secrets?
+                    </h3>
+                    <p class="text-gray-400">
+                        We provide secure handling of environment variables and secrets through encrypted storage and integration with popular secret management services.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact/Help Section -->
+    <section class="py-20 bg-primary relative overflow-hidden">
+        <!-- Animated background elements -->
+        <div class="absolute inset-0">
+            <!-- Glowing circles -->
+            <div class="absolute w-96 h-96 bg-accent/5 rounded-full blur-3xl -top-24 -left-24 animate-pulse"></div>
+            <div class="absolute w-96 h-96 bg-blue-500/5 rounded-full blur-3xl -bottom-24 -right-24 animate-pulse delay-700"></div>
+            
+            <!-- Animated grid lines -->
+            <div class="absolute inset-0 grid grid-cols-6 gap-px opacity-20">
+                <div class="col-span-full h-px bg-accent/20 transform translate-y-1/3 animate-slide-right"></div>
+                <div class="col-span-full h-px bg-accent/20 transform translate-y-2/3 animate-slide-left"></div>
+            </div>
+        </div>
+
+        <div class="container mx-auto px-4 text-center relative z-10">
+            <h2 class="text-4xl font-bold text-white mb-8">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-accent to-blue-400">
+                    Need Help?
+                </span>
+            </h2>
+            
+            <p class="text-gray-400 mb-12 max-w-2xl mx-auto text-lg">
+                Have questions or need assistance? I'm here to help! Feel free to reach out through any of the following channels.
+            </p>
+            
+            <!-- Contact Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-12">
+                <!-- Email Card -->
+                <div class="group bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:transform hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+                    <!-- Hover glow effect -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-accent/10 to-blue-500/10 opacity-0 
+                                group-hover:opacity-100 transition-opacity"></div>
+                    
+                    <!-- Icon -->
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg mx-auto flex items-center justify-center mb-4 
+                                group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    
+                    <h3 class="text-lg font-semibold text-white mb-2 group-hover:text-accent transition-colors">Email</h3>
+                    <a href="mailto:mehdi.h@nestgit.com" 
+                       class="text-gray-400 hover:text-accent transition-colors">
+                        mehdi.h@nestgit.com
+                    </a>
+                </div>
+
+                <!-- GitHub Card -->
+                <div class="group bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:transform hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-r from-accent/10 to-blue-500/10 opacity-0 
+                                group-hover:opacity-100 transition-opacity"></div>
+                    
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg mx-auto flex items-center justify-center mb-4 
+                                group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.137 20.167 22 16.42 22 12c0-5.523-4.477-10-10-10z"/>
+                        </svg>
+                    </div>
+                    
+                    <h3 class="text-lg font-semibold text-white mb-2 group-hover:text-accent transition-colors">GitHub</h3>
+                    <a href="https://github.com/opestro" 
+                       class="text-gray-400 hover:text-accent transition-colors">
+                        @opestro
+                    </a>
+                </div>
+
+                <!-- LinkedIn Card -->
+                <div class="group bg-secondary/50 p-6 rounded-xl backdrop-blur-sm border border-accent/10 
+                            hover:transform hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-r from-accent/10 to-blue-500/10 opacity-0 
+                                group-hover:opacity-100 transition-opacity"></div>
+                    
+                    <div class="w-12 h-12 bg-accent/20 rounded-lg mx-auto flex items-center justify-center mb-4 
+                                group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/>
+                            <circle cx="4" cy="4" r="2" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    
+                    <h3 class="text-lg font-semibold text-white mb-2 group-hover:text-accent transition-colors">LinkedIn</h3>
+                    <a href="https://linkedin.com/in/mehdi-harzallah" 
+                       class="text-gray-400 hover:text-accent transition-colors">
+                        Mehdi Harzallah
+                    </a>
+                </div>
+            </div>
+
+            <!-- Direct Contact Button -->
+            <a href="mailto:mehdi.h@nestgit.com" 
+               class="group relative inline-flex items-center px-8 py-3 overflow-hidden rounded-lg 
+                      bg-accent text-primary font-semibold transition-all duration-300
+                      hover:bg-accent/90 hover:scale-105 hover:shadow-lg hover:shadow-accent/50">
+                <span class="relative z-10">Get in Touch</span>
+                <!-- Button glow effect -->
+                <div class="absolute inset-0 -z-10 bg-gradient-to-r from-accent to-blue-400 opacity-0 
+                            group-hover:opacity-50 blur-xl transition-opacity"></div>
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-primary/90 py-16 relative overflow-hidden">
+        <!-- Animated background elements -->
+        <div class="absolute inset-0">
+            <!-- Glowing lines -->
+            <div class="absolute h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent w-full top-0 animate-slide-right"></div>
+            <div class="absolute h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent w-full bottom-0 animate-slide-left"></div>
+        </div>
+
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl mx-auto">
+                <!-- Contact Info -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-accent mb-4">Connect With Me</h3>
+                    <div class="space-y-2">
+                        <a href="https://github.com/opestro" 
+                           class="flex items-center text-gray-400 hover:text-accent transition-colors group">
+                            <svg class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.137 20.167 22 16.42 22 12c0-5.523-4.477-10-10-10z"/>
+                            </svg>
+                            @opestro
+                        </a>
+                        <a href="https://linkedin.com/in/mehdi-harzallah" 
+                           class="flex items-center text-gray-400 hover:text-accent transition-colors group">
+                            <svg class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                            </svg>
+                            Mehdi Harzallah
+                        </a>
+                        <a href="tel:+213778191078" 
+                           class="flex items-center text-gray-400 hover:text-accent transition-colors group">
+                            <svg class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                            </svg>
+                            +213 778191078
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Thank You Message -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-accent mb-4">Special Thanks</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        Special thanks to CSC Club for the amazing experience and knowledge sharing. 
+                        Your support and collaboration have been invaluable in making this project possible.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Made with Love -->
+            <div class="text-center mt-12 pt-8 border-t border-accent/10">
+                <p class="text-gray-400 flex items-center justify-center gap-2">
+                    Made with 
+                    <span class="text-accent animate-pulse">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    </span>
+                    by Mehdi Harzallah
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Three.js Background Animation
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({
+            canvas: document.getElementById('heroCanvas'),
+            alpha: true
+        });
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.position.z = 5;
+
+        // Create particles
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 1000;
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for(let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 10;
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.005,
+            color: '#64ffda',
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particlesMesh);
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+            particlesMesh.rotation.y += 0.001;
+            particlesMesh.rotation.x += 0.0005;
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+
+    <!-- Add this script for mobile menu functionality -->
+    <script>
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!mobileMenuButton.contains(e.target) && !mobileMenu.contains(e.target)) {
+                mobileMenu.classList.add('hidden');
+            }
+        });
+
+        // Close mobile menu when clicking a link
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+            });
+        });
+    </script>
 </body>
 </html>

@@ -41,7 +41,7 @@ export function showBanner() {
     // Developer credits
     console.log(gradient.pastel.multiline(
         boxen(
-            '🧑‍💻 Developed by MEHDI HARZALLAH\n' +
+            '��‍💻 Developed by MEHDI HARZALLAH\n' +
             '🔗 GitHub: https://github.com/opestro',
             {
                 padding: 1,
@@ -88,11 +88,11 @@ export function showBanner() {
         boxen(
             'Quick Start:\n\n' +
             '1. Initialize project:\n' +
-            '   $ web-deploy init\n\n' +
+            '   $ csdeploy init\n\n' +
             '2. Configure deployment:\n' +
-            '   $ web-deploy config\n\n' +
+            '   $ csdeploy config\n\n' +
             '3. Deploy your project:\n' +
-            '   $ web-deploy deploy',
+            '   $ csdeploy deploy',
             {
                 padding: 1,
                 margin: { top: 0, bottom: 1 },
