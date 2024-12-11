@@ -18,6 +18,8 @@ import { FileTracker } from './fileTracker.js';
 import {glob} from 'glob';
 import { IgnoreHandler } from './ignoreHandler.js';
 import { CommandRunner } from './commandRunner.js';
+import { browse } from './commands/browse.js';
+import { homedir } from 'os';
 
 // Fix __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -138,15 +140,39 @@ async function deployViaFTP(config, spinner, deploymentType = 'both') {
   }
 }
 
-async function deployViaSSH(config, spinner, deploymentType = 'both') {
+async function deployViaSSH(config, spinner) {
   const ssh = new NodeSSH();
   const fileTracker = new FileTracker(path.resolve(config.localPath));
-  const ignoreHandler = new IgnoreHandler(path.resolve(config.localPath));
-  const commandRunner = new CommandRunner(path.resolve(config.localPath), config.remotePath);
-  let deployableFiles = [];
-  let commandResult = null;
 
   try {
+    spinner.start('Analyzing files for deployment...');
+    
+    // Get files that should be deployed
+    const { deployableFiles, ignoredFiles, newHashes } = await fileTracker.getDeployableFiles();
+
+    // Log ignored files
+    if (ignoredFiles.length > 0) {
+      console.log(
+        boxen(
+          chalk.yellow('Ignored Files (will not be deployed):\n') +
+          ignoredFiles.map(f => chalk.gray(`• ${f}`)).join('\n'),
+          {
+            padding: 1,
+            margin: 1,
+            borderStyle: 'round',
+            borderColor: 'yellow',
+            title: 'Skipped Files',
+            titleAlignment: 'center'
+          }
+        )
+      );
+    }
+
+    if (deployableFiles.length === 0) {
+      spinner.succeed('No files to deploy (all files are either ignored or unchanged)');
+      return;
+    }
+
     // Connect to SSH
     spinner.start('Connecting to SSH server...');
     const sshConfig = {
@@ -159,115 +185,56 @@ async function deployViaSSH(config, spinner, deploymentType = 'both') {
     await ssh.connect(sshConfig);
     spinner.succeed('Connected to SSH server');
 
-    // Handle file deployment if requested
-    if (deploymentType === 'files' || deploymentType === 'both') {
-      spinner.start('Analyzing files for deployment...');
+    // Deploy each file
+    for (const file of deployableFiles) {
+      spinner.start(`Deploying ${file}...`);
       
-      // Get files that should be deployed
-      const { deployableFiles: files, ignoredFiles, newHashes } = await fileTracker.getDeployableFiles();
-
-      // Log ignored files
-      if (ignoredFiles.length > 0) {
-        console.log(
-          boxen(
-            chalk.yellow('Ignored Files (will not be deployed):\n') +
-            ignoredFiles.map(f => chalk.gray(`• ${f}`)).join('\n'),
-            {
-              padding: 1,
-              margin: 1,
-              borderStyle: 'round',
-              borderColor: 'yellow',
-              title: 'Skipped Files',
-              titleAlignment: 'center'
-            }
-          )
-        );
+      // Double-check ignore status before deploying each file
+      const shouldIgnore = await fileTracker.shouldIgnoreFile(file);
+      if (shouldIgnore) {
+        spinner.info(`Skipping ignored file: ${file}`);
+        continue;
       }
 
-      if (files.length === 0) {
-        spinner.succeed('No files to deploy (all files are either ignored or unchanged)');
-      } else {
-        // Deploy each file
-        for (const file of files) {
-          spinner.start(`Deploying ${file}...`);
-          
-          // Double-check ignore status before deploying each file
-          const shouldIgnore = await fileTracker.shouldIgnoreFile(file);
-          if (shouldIgnore) {
-            spinner.info(`Skipping ignored file: ${file}`);
-            continue;
-          }
-
-          const localPath = path.join(config.localPath, file);
-          const remotePath = path.join(config.remotePath, file);
-          
-          // Ensure remote directory exists
-          const remoteDir = path.dirname(remotePath);
-          await ssh.execCommand(`mkdir -p "${remoteDir}"`);
-          
-          // Upload file
-          await ssh.putFile(localPath, remotePath);
-          spinner.succeed(`Deployed ${file}`);
-        }
-
-        // Update tracking only for deployed files
-        const deployedHashes = {};
-        for (const file of files) {
-          if (newHashes[file]) {
-            deployedHashes[file] = newHashes[file];
-          }
-        }
-        await fileTracker.updateTrackedFiles(deployedHashes);
-        spinner.succeed(`Successfully deployed ${files.length} files`);
-      }
+      const localPath = path.join(config.localPath, file);
+      const remotePath = path.join(config.remotePath, file);
+      
+      // Ensure remote directory exists
+      const remoteDir = path.dirname(remotePath);
+      await ssh.execCommand(`mkdir -p "${remoteDir}"`);
+      
+      // Upload file
+      await ssh.putFile(localPath, remotePath);
+      spinner.succeed(`Deployed ${file}`);
     }
 
-    // Handle command execution if requested
-    if (deploymentType === 'commands' || deploymentType === 'both') {
-      spinner.start('Executing post-deployment commands...');
-      commandResult = await commandRunner.executeCommands(ssh, true);
-      
-      if (commandResult.success) {
-        spinner.succeed('Post-deployment commands executed successfully');
-        if (commandResult.results) {
-          commandResult.results.forEach(result => {
-            console.log(chalk.cyan(`Command: ${result.command}`));
-            if (result.output) {
-              console.log(chalk.gray(result.output));
-            }
-          });
-        }
-      } else {
-        spinner.fail('Some post-deployment commands failed');
-        commandResult.results.forEach(result => {
-          const status = result.success ? chalk.green('✓') : chalk.red('✗');
-          console.log(`${status} ${result.command}`);
-          if (!result.success && result.output) {
-            console.log(chalk.red(result.output));
-          }
-        });
+    // Update tracking only for deployed files
+    const deployedHashes = {};
+    for (const file of deployableFiles) {
+      if (newHashes[file]) {
+        deployedHashes[file] = newHashes[file];
       }
     }
+    await fileTracker.updateTrackedFiles(deployedHashes);
 
     // Final summary
     console.log(
       boxen(
-        chalk.green('Deployment completed successfully!') + '\n\n' +
-        chalk.cyan('Summary:') + '\n' +
-        (deploymentType === 'files' || deploymentType === 'both' ? chalk.white(`• Files deployed: ${files.length}`) + '\n' : '') +
-        (deploymentType === 'commands' || deploymentType === 'both' ? chalk.white(`• Commands executed: ${commandResult?.results?.length || 0}`) : ''),
+        chalk.cyan('Successfully Deployed:\n') +
+        deployableFiles.map(f => chalk.green(`✔ ${f}`)).join('\n'),
         {
           padding: 1,
           margin: 1,
           borderStyle: 'round',
           borderColor: 'green',
-          title: 'Deployment Complete',
+          title: 'Deployment Summary',
           titleAlignment: 'center'
         }
       )
     );
 
   } catch (error) {
+    spinner.fail(`Deployment failed: ${error.message}`);
     throw error;
   } finally {
     ssh.dispose();
@@ -449,7 +416,7 @@ async function promptForDeployment() {
     if (config.type === 'FTP') {
       await deployViaFTP(config, spinner, deploymentType);
     } else {
-      await deployViaSSH(config, spinner, deploymentType);
+      await deployViaSSH(config, spinner);
     }
 
   } catch (error) {
@@ -668,7 +635,7 @@ program
           chalk.white('- .deploycommands (Post-deployment commands)') + '\n\n' +
           chalk.cyan('Next steps:') + '\n' +
           chalk.white('1. Edit .cscc-ignore to customize ignored files') + '\n' +
-          chalk.white('2. Run "web-deploy deploy" to start deployment'),
+          chalk.white('2. Run "csdeploy deploy" to start deployment'),
           {
             padding: 1,
             margin: 1,
@@ -761,9 +728,9 @@ program
             boxen(
               chalk.yellow('No .cscc-ignore file found!\n\n') +
               chalk.white('Run one of the following commands:\n') +
-              chalk.cyan('web-deploy check-ignore --create') + 
+              chalk.cyan('csdeploy check-ignore --create') + 
               chalk.white(' - Create with default patterns\n') +
-              chalk.cyan('web-deploy init') + 
+              chalk.cyan('csdeploy init') + 
               chalk.white(' - Initialize full project'),
               {
                 padding: 1,
@@ -860,11 +827,11 @@ program
           boxen(
             chalk.cyan('Available Commands:\n\n') +
             chalk.white('List all ignored files:\n') +
-            chalk.cyan('  web-deploy check-ignore --list\n\n') +
+            chalk.cyan('  csdeploy check-ignore --list\n\n') +
             chalk.white('Test specific file:\n') +
-            chalk.cyan('  web-deploy check-ignore --test <file>\n\n') +
+            chalk.cyan('  csdeploy check-ignore --test <file>\n\n') +
             chalk.white('Create ignore file:\n') +
-            chalk.cyan('  web-deploy check-ignore --create'),
+            chalk.cyan('  csdeploy check-ignore --create'),
             {
               padding: 1,
               margin: 1,
@@ -879,6 +846,41 @@ program
 
     } catch (error) {
       console.error(chalk.red('Error checking ignore patterns:'), error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('browse')
+  .description('Browse and manage remote files interactively')
+  .action(async () => {
+    try {
+      showBanner();
+      const config = await loadConfig();
+      
+      if (!config) {
+        console.log(chalk.yellow('No configuration found. Please run deploy first.'));
+        return;
+      }
+
+      // Resolve the private key path properly
+      if (config.privateKey) {
+        config.privateKey = config.privateKey
+          .replace(/^~/, homedir())
+          .replace(/\\/g, '/');
+        
+        try {
+          // Read the private key file
+          config.privateKey = fs.readFileSync(config.privateKey, 'utf8');
+        } catch (error) {
+          console.error(chalk.red('Error reading private key:'), error.message);
+          return;
+        }
+      }
+
+      await browse();
+    } catch (error) {
+      console.error(chalk.red('Error in browse mode:'), error.message);
       process.exit(1);
     }
   });

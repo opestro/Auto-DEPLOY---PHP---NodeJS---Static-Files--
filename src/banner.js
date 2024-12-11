@@ -16,7 +16,7 @@ export function showBanner() {
         margin: 1,
         borderStyle: 'double',
         borderColor: 'cyan',
-        title: 'v1.0.0',
+        title: 'v1.3',
         titleAlignment: 'center'
     });
 

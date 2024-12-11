@@ -14,7 +14,7 @@
 <br>
 
 [![License](https://img.shields.io/badge/%F0%9F%94%AE_License-MIT-f450e5.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/%F0%9F%92%AB_Version-1.2.3-4deeea.svg?style=for-the-badge)](package.json)
+[![Version](https://img.shields.io/badge/%F0%9F%92%AB_Version-1.3-4deeea.svg?style=for-the-badge)](package.json)
 [![Node.js](https://img.shields.io/badge/%F0%9F%8C%9F_Node-%3E%3D%2018.0.0-66ff66.svg?style=for-the-badge)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/%F0%9F%92%AB_PRs-welcome-ff69b4.svg?style=for-the-badge)](http://makeapullrequest.com)
 
@@ -77,6 +77,72 @@
 - `SFTP` 📡 Secure file transfer
 - `KEYS` 🔑 Smart authentication
 - `CONFIG` ⚙️ Flexible configuration
+
+### 🔍 Browse Mode
+
+```css
+╔══════════════════════════════════════════════╗
+║  INTERACTIVE FILE MANAGEMENT                 ║
+║  Browse • Manage • Execute                   ║
+╚══════════════════════════════════════════════╝
+```
+
+```bash
+# 🌟 Enter Browse Mode
+$ csdeploy browse
+
+# 📂 Available Commands:
+ls                          # List files and directories
+cd <dir>                    # Change directory
+pwd                         # Show current path
+mkdir <dir1> [dir2...]     # Create directories
+rmv <file1> [file2...]     # Remove files
+rmv -f <dir1> [dir2...]    # Remove directories
+rmv -all                   # Remove everything in current path
+cp <src> <dest>            # Copy files
+mv <src> <dest>            # Move/rename files
+run <command>              # Execute remote commands
+```
+
+### 🎯 Browse Examples
+
+```bash
+# 📁 Directory Management
+mkdir assets images css     # Create multiple directories
+cd assets                  # Navigate to directory
+pwd                        # Show current location
+
+# 🗑️ File Operations
+rmv file1.txt file2.txt    # Remove multiple files
+rmv -f folder1 folder2     # Remove multiple directories
+rmv -all                   # Clean current directory
+
+# 📦 File Transfer
+cp source.js dest.js       # Copy files
+mv old.css new.css        # Move/rename files
+
+# ⚡ Remote Execution
+run npm install           # Run npm commands
+run git pull             # Execute git commands
+```
+
+### 🛡️ Browse Features
+
+```css
+╔══════════════════════════════════════════════╗
+║  BROWSE MODE CAPABILITIES                    ║
+║  Interactive • Secure • Powerful             ║
+╚══════════════════════════════════════════════╝
+```
+
+- `BROWSE` 🔍 Interactive file navigation
+- `CREATE` 📁 Multi-directory creation
+- `REMOVE` 🗑️ Batch file/directory removal
+- `COPY` 📦 Secure file copying
+- `MOVE` 🚀 Smart file relocation
+- `EXECUTE` ⚡ Remote command execution
+- `LIST` 📋 Tree-style file listing
+- `NAVIGATE` 🌐 Seamless directory traversal
 
 ## 🚀 Quick Start
 

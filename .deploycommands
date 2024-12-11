@@ -2,16 +2,16 @@
 # Commands will be executed in order in the remote directory
 
 # Change working directory if needed
-WORKDIR ./adem
+# WORKDIR ./adem
 
 # Run git commands
-RUN git clone https://github.com/opestro/csdeploy-landingPage.git
+# RUN git clone https://github.com/opestro/csdeploy-landingPage.git
 
 # Copy files to public_html (use -f to force overwrite if needed)
 # COPY ./csdeploy-landingPage/* ./adem
-
+ls
 # Or use MOVE to move the files instead of copying
-MOVE ./csdeploy-landingPage/* ./adem/
+# MOVE ./csdeploy-landingPage/* ./adem/
 
 # Setup commands (uncomment if needed)
 # RUN cd public_html
