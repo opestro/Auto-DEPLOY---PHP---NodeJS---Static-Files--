@@ -9,7 +9,7 @@
 
 # Copy files to public_html (use -f to force overwrite if needed)
 # COPY ./csdeploy-landingPage/* ./adem
-ls
+RUN ls
 # Or use MOVE to move the files instead of copying
 # MOVE ./csdeploy-landingPage/* ./adem/
 

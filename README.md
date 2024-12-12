@@ -14,7 +14,7 @@
 <br>
 
 [![License](https://img.shields.io/badge/%F0%9F%94%AE_License-MIT-f450e5.svg?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/%F0%9F%92%AB_Version-1.3-4deeea.svg?style=for-the-badge)](package.json)
+[![Version](https://img.shields.io/badge/%F0%9F%92%AB_Version-1.3.1-4deeea.svg?style=for-the-badge)](package.json)
 [![Node.js](https://img.shields.io/badge/%F0%9F%8C%9F_Node-%3E%3D%2018.0.0-66ff66.svg?style=for-the-badge)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/%F0%9F%92%AB_PRs-welcome-ff69b4.svg?style=for-the-badge)](http://makeapullrequest.com)
 

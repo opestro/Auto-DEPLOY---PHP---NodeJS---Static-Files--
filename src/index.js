@@ -20,6 +20,7 @@ import { IgnoreHandler } from './ignoreHandler.js';
 import { CommandRunner } from './commandRunner.js';
 import { browse } from './commands/browse.js';
 import { homedir } from 'os';
+import gradient from 'gradient-string';
 
 // Fix __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -27,9 +28,69 @@ const __dirname = dirname(__filename);
 
 dotenv.config();
 
+// Create a separate function for the getting started guide
+function showGettingStarted() {
+  showBanner();
+  console.log(gradient.pastel.multiline(
+    boxen(
+      '🚀 Getting Started with CSDeploy\n\n' +
+      '1. Initialize a New Project\n' +
+      '   $ csdeploy init\n' +
+      '   Creates configuration files and project structure\n\n' +
+      '2. Configure Your Deployment\n' +
+      '   $ csdeploy config\n' +
+      '   Set up your deployment preferences\n\n' +
+      '3. Deploy Your Project\n' +
+      '   $ csdeploy deploy\n' +
+      '   Choose deployment type:\n' +
+      '   • Files only\n' +
+      '   • Run commands only\n' +
+      '   • Both files and commands\n\n' +
+      '4. Additional Features\n' +
+      '   $ csdeploy browse    Interactive file browser\n' +
+      '   $ csdeploy status    Check deployment status\n' +
+      '   $ csdeploy edit      Modify configuration',
+      {
+        padding: 1,
+        margin: 1,
+        borderStyle: 'round',
+        borderColor: 'cyan',
+        title: '📚 Quick Guide',
+        titleAlignment: 'center'
+      }
+    )
+  ));
+}
+
+// Update the program configuration
 program
-  .version('1.0.0')
-  .description('Web project deployment CLI for cPanel/Hostinger');
+  .name('csdeploy')
+  .description('Modern web deployment CLI for cPanel/Hostinger')
+  .version('1.3.0')
+  .action(() => {
+    // Show getting started guide for root command
+    showGettingStarted();
+  });
+
+// Add help option explicitly
+program
+  .option('-h, --help', 'Display help information')
+  .on('option:help', () => {
+    showGettingStarted();
+  });
+
+// Handle unknown commands
+program
+  .on('command:*', () => {
+    console.error(chalk.red('\nError: Invalid command'));
+    showGettingStarted();
+    process.exit(1);
+  });
+
+// Show getting started if no arguments provided
+if (!process.argv.slice(2).length) {
+  showGettingStarted();
+}
 
 async function deployViaFTP(config, spinner, deploymentType = 'both') {
   const client = new ftp.Client();
@@ -256,147 +317,9 @@ async function promptForDeployment() {
     let config = await loadConfig();
 
     if (!config) {
-      // Prompt for initial configuration
-      const fileTracker = new FileTracker(process.cwd());
-      const savedConfig = await fileTracker.loadConfig();
-      
-      // First prompt for connection type
-      const connectionType = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'type',
-          message: 'Select connection type:',
-          choices: ['FTP', 'SFTP/SSH'],
-          default: savedConfig?.type || 'SFTP/SSH'
-        }
-      ]);
-
-      if (savedConfig) {
-        const useExisting = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'useSaved',
-            message: 'Use saved configuration?',
-            default: true
-          }
-        ]);
-
-        if (useExisting.useSaved) {
-          return savedConfig;
-        }
-      }
-
-      let answers;
-      if (connectionType.type === 'SFTP/SSH') {
-        const sshQuestions = [
-          {
-            type: 'input',
-            name: 'privateKey',
-            message: 'Enter path to private key (e.g., ~/.ssh/id_rsa):',
-            default: savedConfig?.privateKey || '~/.ssh/id_rsa'
-          },
-          {
-            type: 'input',
-            name: 'username',
-            message: 'Enter SSH username:',
-            default: savedConfig?.username || process.env.DEPLOY_USERNAME
-          },
-          {
-            type: 'input',
-            name: 'host',
-            message: 'Enter host (e.g., yourdomain.com):',
-            default: savedConfig?.host || process.env.DEPLOY_HOST
-          },
-          {
-            type: 'input',
-            name: 'remotePath',
-            message: 'Enter remote path (e.g., public_html/):',
-            default: savedConfig?.remotePath || 'public_html/'
-          },
-          {
-            type: 'input',
-            name: 'localPath',
-            message: 'Enter local project path:',
-            default: savedConfig?.localPath || './'
-          },
-          {
-            type: 'password',
-            name: 'passphrase',
-            message: 'Enter key passphrase (leave empty if none):',
-            mask: '*'
-          }
-        ];
-
-        answers = await inquirer.prompt(sshQuestions);
-        answers.privateKey = answers.privateKey.replace(/^~/, process.env.HOME || process.env.USERPROFILE);
-      } else {
-        const ftpQuestions = [
-          {
-            type: 'input',
-            name: 'host',
-            message: 'Enter host (e.g., yourdomain.com):',
-            default: process.env.DEPLOY_HOST
-          },
-          {
-            type: 'input',
-            name: 'username',
-            message: 'Enter username:',
-            default: process.env.DEPLOY_USERNAME
-          },
-          {
-            type: 'input',
-            name: 'remotePath',
-            message: 'Enter remote path (e.g., public_html/):',
-            default: 'public_html/'
-          },
-          {
-            type: 'input',
-            name: 'localPath',
-            message: 'Enter local project path:',
-            default: './'
-          },
-          {
-            type: 'password',
-            name: 'password',
-            message: 'Enter FTP password:',
-            mask: '*'
-          },
-          {
-            type: 'confirm',
-            name: 'secure',
-            message: 'Use secure FTP (FTPS)?',
-            default: true
-          }
-        ];
-
-        answers = await inquirer.prompt(ftpQuestions);
-      }
-
-      answers.type = connectionType.type;
-
-      // Ask if user wants to save this configuration
-      const savePrompt = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'save',
-          message: 'Save this configuration for future use?',
-          default: true
-        }
-      ]);
-
-      if (savePrompt.save) {
-        await fileTracker.saveConfig(answers);
-      }
-
-      return answers;
+      console.log(chalk.yellow('No configuration found. Please run deploy first.'));
+      return;
     }
-
-    // Create spinner
-    const spinner = ora({
-      text: 'Starting deployment...',
-      spinner: 'dots',
-      color: 'cyan'
-    });
 
     // Ask for deployment type
     const { deploymentType } = await inquirer.prompt([
@@ -412,11 +335,84 @@ async function promptForDeployment() {
       }
     ]);
 
-    // Modify deployment functions to handle deployment type
-    if (config.type === 'FTP') {
-      await deployViaFTP(config, spinner, deploymentType);
-    } else {
-      await deployViaSSH(config, spinner);
+    const spinner = ora('Starting deployment...').start();
+
+    try {
+      // Handle SSH connection
+      if (config.type !== 'FTP') {
+        const ssh = new NodeSSH();
+        
+        // Resolve and read private key
+        if (config.privateKey) {
+          const privateKeyPath = config.privateKey
+            .replace(/^~/, homedir())
+            .replace(/\\/g, '/');
+          
+          try {
+            config.privateKey = await fs.readFile(privateKeyPath, 'utf8');
+          } catch (error) {
+            spinner.fail('Failed to read private key');
+            console.error(chalk.red('Error:'), error.message);
+            return;
+          }
+        }
+
+        // Connect to SSH
+        try {
+          spinner.text = 'Connecting to SSH...';
+          await ssh.connect({
+            host: config.host,
+            username: config.username,
+            privateKey: config.privateKey,
+            passphrase: config.passphrase
+          });
+          spinner.succeed('Connected to SSH');
+
+          // Initialize command runner
+          const commandRunner = new CommandRunner(
+            path.resolve(config.localPath), 
+            config.remotePath
+          );
+
+          // Execute based on deployment type
+          if (deploymentType === 'commands' || deploymentType === 'both') {
+            spinner.start('Executing commands...');
+            const result = await commandRunner.executeCommands(ssh, true);
+            
+            if (result.success) {
+              spinner.succeed('Commands executed successfully');
+              result.results.forEach(cmd => {
+                if (cmd.output) {
+                  console.log(chalk.cyan('\nCommand output:'));
+                  console.log(cmd.output);
+                }
+              });
+            } else {
+              spinner.fail('Command execution failed');
+              console.error(chalk.red('Error:'), result.results[0].output);
+            }
+          }
+
+          // Handle file deployment separately
+          if (deploymentType === 'files' || deploymentType === 'both') {
+            await deployViaSSH(config, spinner);
+          }
+
+        } finally {
+          ssh.dispose();
+        }
+      } else {
+        // Handle FTP deployment
+        if (deploymentType === 'commands') {
+          spinner.warn('Command execution is not supported over FTP. Please use SSH for command execution.');
+          return;
+        }
+        await deployViaFTP(config, spinner, deploymentType);
+      }
+
+    } catch (error) {
+      spinner.fail('Deployment failed');
+      console.error(chalk.red('Error:'), error.message);
     }
 
   } catch (error) {

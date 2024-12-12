@@ -3,3 +3,5 @@ node_modules/
 .cscc-ignore
 .ssh/id_rsa
 Project/
+.ssh/
+.env

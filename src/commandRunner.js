@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
+import ora from 'ora';
 
 export class CommandRunner {
     constructor(localPath, remotePath) {
@@ -19,17 +20,27 @@ export class CommandRunner {
             
             // Parse Docker-like commands
             if (trimmed.startsWith('RUN ')) {
-                commands.push(trimmed.substring(4));
+                commands.push({
+                    type: 'run',
+                    command: trimmed.substring(4).trim()
+                });
             } else if (trimmed.startsWith('WORKDIR ')) {
-                commands.push(`cd ${trimmed.substring(8)}`);
+                commands.push({
+                    type: 'workdir',
+                    command: `cd "${trimmed.substring(8).trim()}"`
+                });
             } else if (trimmed.startsWith('COPY ')) {
-                // Convert COPY to cp -r command
-                const [_, src, dest] = trimmed.split(' ');
-                commands.push(`cp -r ${src} ${dest}`);
+                const [_, src, dest] = trimmed.split(' ').map(p => p.trim());
+                commands.push({
+                    type: 'copy',
+                    command: `cp -r "${src}" "${dest}"`
+                });
             } else if (trimmed.startsWith('MOVE ')) {
-                // Convert MOVE to mv command
-                const [_, src, dest] = trimmed.split(' ');
-                commands.push(`mv ${src} ${dest}`);
+                const [_, src, dest] = trimmed.split(' ').map(p => p.trim());
+                commands.push({
+                    type: 'move',
+                    command: `mv "${src}" "${dest}"`
+                });
             }
         }
         
@@ -40,53 +51,98 @@ export class CommandRunner {
         try {
             if (await fs.pathExists(this.commandsFile)) {
                 const content = await fs.readFile(this.commandsFile, 'utf8');
-                return this.parseDockerLikeCommands(content).join(' && ');
+                return this.parseDockerLikeCommands(content);
             }
-            return '';
+            return [];
         } catch (error) {
             console.error(chalk.red('Error reading .deploycommands file:', error.message));
-            return '';
+            return [];
         }
     }
 
     async executeCommands(connection, isSSH = true) {
         const commands = await this.loadCommands();
-        if (!commands) {
-            return { success: true, message: 'No commands to execute' };
+        if (!commands.length) {
+            return { 
+                success: true, 
+                results: [{
+                    command: 'No commands',
+                    success: true,
+                    output: 'No commands to execute'
+                }]
+            };
         }
 
-        if (isSSH) {
-            try {
-                // Execute commands directly in the remote directory
-                const cdCommand = `cd "${this.remotePath}"`;
-                const result = await connection.execCommand(`${cdCommand} && ${commands}`);
-                
-                return {
-                    success: result.code === 0,
-                    results: [{
-                        command: 'Deployment Commands',
-                        success: result.code === 0,
-                        output: result.stdout || result.stderr
-                    }]
-                };
-            } catch (error) {
-                return {
-                    success: false,
-                    results: [{
-                        command: 'Deployment Commands',
-                        success: false,
-                        output: error.message
-                    }]
-                };
-            }
-        } else {
+        if (!isSSH) {
             console.log(chalk.yellow('Warning: Command execution over FTP is limited. Use SSH for full command support.'));
             return {
                 success: false,
                 results: [{
-                    command: 'Deployment Commands',
+                    command: 'Commands',
                     success: false,
                     output: 'Command execution not supported over FTP'
+                }]
+            };
+        }
+
+        const results = [];
+        const spinner = ora('Executing commands...').start();
+
+        try {
+            // First, ensure we're in the remote path
+            spinner.text = `Changing to directory: ${this.remotePath}`;
+            await connection.execCommand(`cd "${this.remotePath}"`);
+
+            // Execute each command sequentially
+            for (const cmd of commands) {
+                spinner.text = `Executing: ${cmd.command}`;
+                
+                const result = await connection.execCommand(cmd.command, {
+                    cwd: this.remotePath,
+                    stream: 'both'
+                });
+
+                results.push({
+                    type: cmd.type,
+                    command: cmd.command,
+                    success: result.code === 0,
+                    output: result.stdout || result.stderr
+                });
+
+                if (result.code !== 0) {
+                    spinner.fail(`Command failed: ${cmd.command}`);
+                    console.error(chalk.red('Error output:'), result.stderr);
+                    break;
+                } else {
+                    spinner.succeed(`Completed: ${cmd.command}`);
+                    if (result.stdout) {
+                        console.log(chalk.gray(result.stdout));
+                    }
+                }
+            }
+
+            spinner.stop();
+            
+            const success = results.every(r => r.success);
+            if (success) {
+                console.log(chalk.green('\n✔ All commands executed successfully'));
+            } else {
+                console.log(chalk.red('\n✖ Some commands failed'));
+            }
+
+            return {
+                success,
+                results
+            };
+
+        } catch (error) {
+            spinner.fail('Command execution failed');
+            return {
+                success: false,
+                results: [{
+                    command: 'Commands',
+                    success: false,
+                    output: error.message
                 }]
             };
         }
