@@ -23,7 +23,7 @@ export function showBanner() {
             borderStyle: 'round',
             borderColor: '#2997FF',
             float: 'center',
-            title: '✨ 1.3.1',
+            title: '✨ 1.3.2',
             titleAlignment: 'center'
         }
     );

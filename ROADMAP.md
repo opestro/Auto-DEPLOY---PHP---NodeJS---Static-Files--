@@ -14,7 +14,7 @@ Current features and capabilities of CSDeploy CLI:
 ### Local Dashboard Development
 - [ ] Setup Express/Fastify backend server
 - [ ] Implement WebSocket for real-time updates
-- [ ] Create Nuxt frontend with modern UI
+- [ ] Create Nuxt frontend with modern UI simple lite web app one page deployment dashboard
 - [ ] Integrate deployment monitoring
 - [ ] Add real-time file change tracking
 - [ ] Implement command execution logs

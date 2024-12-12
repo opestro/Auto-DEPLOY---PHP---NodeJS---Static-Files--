@@ -13,34 +13,48 @@ export class CommandRunner {
     parseDockerLikeCommands(content) {
         const lines = content.split('\n');
         const commands = [];
+        let lineNumber = 0;
         
         for (const line of lines) {
+            lineNumber++;
             const trimmed = line.trim();
             if (!trimmed || trimmed.startsWith('#')) continue;
             
-            // Parse Docker-like commands
-            if (trimmed.startsWith('RUN ')) {
-                commands.push({
-                    type: 'run',
-                    command: trimmed.substring(4).trim()
-                });
-            } else if (trimmed.startsWith('WORKDIR ')) {
-                commands.push({
-                    type: 'workdir',
-                    command: `cd "${trimmed.substring(8).trim()}"`
-                });
-            } else if (trimmed.startsWith('COPY ')) {
-                const [_, src, dest] = trimmed.split(' ').map(p => p.trim());
-                commands.push({
-                    type: 'copy',
-                    command: `cp -r "${src}" "${dest}"`
-                });
-            } else if (trimmed.startsWith('MOVE ')) {
-                const [_, src, dest] = trimmed.split(' ').map(p => p.trim());
-                commands.push({
-                    type: 'move',
-                    command: `mv "${src}" "${dest}"`
-                });
+            try {
+                // Parse Docker-like commands
+                if (trimmed.startsWith('RUN ')) {
+                    commands.push({
+                        type: 'run',
+                        command: trimmed.substring(4).trim(),
+                        line: lineNumber
+                    });
+                } else if (trimmed.startsWith('WORKDIR ')) {
+                    commands.push({
+                        type: 'workdir',
+                        command: `cd "${trimmed.substring(8).trim()}"`,
+                        line: lineNumber
+                    });
+                } else if (trimmed.startsWith('COPY ')) {
+                    const [_, src, dest] = trimmed.split(' ').map(p => p.trim());
+                    commands.push({
+                        type: 'copy',
+                        command: `cp -r "${src}" "${dest}"`,
+                        src,
+                        dest,
+                        line: lineNumber
+                    });
+                } else if (trimmed.startsWith('MOVE ')) {
+                    const [_, src, dest] = trimmed.split(' ').map(p => p.trim());
+                    commands.push({
+                        type: 'move',
+                        command: `mv "${src}" "${dest}"`,
+                        src,
+                        dest,
+                        line: lineNumber
+                    });
+                }
+            } catch (error) {
+                console.error(chalk.red(`Error parsing line ${lineNumber}: ${error.message}`));
             }
         }
         
@@ -60,91 +74,105 @@ export class CommandRunner {
         }
     }
 
-    async executeCommands(connection, isSSH = true) {
-        const commands = await this.loadCommands();
+    async executeCommands(connection, options = {}) {
+        const {
+            isSSH = true,
+            useFile = true,
+            directCommands = '',
+            onProgress = () => {}
+        } = options;
+
+        // Load commands from file or direct input
+        const commands = useFile ? 
+            await this.loadCommands() : 
+            this.parseDockerLikeCommands(directCommands);
+
         if (!commands.length) {
-            return { 
-                success: true, 
-                results: [{
-                    command: 'No commands',
-                    success: true,
-                    output: 'No commands to execute'
-                }]
-            };
+            onProgress({
+                type: 'info',
+                message: 'No commands to execute'
+            });
+            return { success: true, results: [] };
         }
 
         if (!isSSH) {
-            console.log(chalk.yellow('Warning: Command execution over FTP is limited. Use SSH for full command support.'));
-            return {
-                success: false,
-                results: [{
-                    command: 'Commands',
-                    success: false,
-                    output: 'Command execution not supported over FTP'
-                }]
-            };
+            onProgress({
+                type: 'error',
+                message: 'Command execution not supported over FTP'
+            });
+            return { success: false, results: [] };
         }
 
         const results = [];
-        const spinner = ora('Executing commands...').start();
+        const totalCommands = commands.length;
 
         try {
             // First, ensure we're in the remote path
-            spinner.text = `Changing to directory: ${this.remotePath}`;
+            onProgress({
+                type: 'info',
+                message: `Changing to directory: ${this.remotePath}`,
+                progress: 0
+            });
+
             await connection.execCommand(`cd "${this.remotePath}"`);
 
             // Execute each command sequentially
-            for (const cmd of commands) {
-                spinner.text = `Executing: ${cmd.command}`;
+            for (let i = 0; i < commands.length; i++) {
+                const cmd = commands[i];
+                const progress = ((i + 1) / totalCommands) * 100;
+
+                onProgress({
+                    type: 'info',
+                    message: `Executing: ${cmd.command}`,
+                    progress,
+                    command: cmd
+                });
                 
                 const result = await connection.execCommand(cmd.command, {
                     cwd: this.remotePath,
                     stream: 'both'
                 });
 
+                const success = result.code === 0;
+                const output = result.stdout || result.stderr;
+
                 results.push({
-                    type: cmd.type,
-                    command: cmd.command,
-                    success: result.code === 0,
-                    output: result.stdout || result.stderr
+                    ...cmd,
+                    success,
+                    output
                 });
 
-                if (result.code !== 0) {
-                    spinner.fail(`Command failed: ${cmd.command}`);
-                    console.error(chalk.red('Error output:'), result.stderr);
-                    break;
-                } else {
-                    spinner.succeed(`Completed: ${cmd.command}`);
-                    if (result.stdout) {
-                        console.log(chalk.gray(result.stdout));
-                    }
-                }
+                onProgress({
+                    type: success ? 'success' : 'error',
+                    message: success ? 
+                        `Completed: ${cmd.command}` : 
+                        `Failed: ${cmd.command}`,
+                    output,
+                    progress,
+                    command: cmd
+                });
+
+                if (!success) break;
             }
 
-            spinner.stop();
-            
             const success = results.every(r => r.success);
-            if (success) {
-                console.log(chalk.green('\n✔ All commands executed successfully'));
-            } else {
-                console.log(chalk.red('\n✖ Some commands failed'));
-            }
+            onProgress({
+                type: success ? 'success' : 'error',
+                message: success ? 
+                    'All commands executed successfully' : 
+                    'Some commands failed',
+                progress: 100
+            });
 
-            return {
-                success,
-                results
-            };
+            return { success, results };
 
         } catch (error) {
-            spinner.fail('Command execution failed');
-            return {
-                success: false,
-                results: [{
-                    command: 'Commands',
-                    success: false,
-                    output: error.message
-                }]
-            };
+            onProgress({
+                type: 'error',
+                message: `Command execution failed: ${error.message}`,
+                progress: 100
+            });
+            return { success: false, results };
         }
     }
 

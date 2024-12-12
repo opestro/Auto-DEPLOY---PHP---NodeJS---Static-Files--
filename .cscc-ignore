@@ -6,6 +6,33 @@
 thumbs.db
 *.log
 .env
+node_modules/**
+.git/**
+dist/**
+build/**
+.next/**
+coverage/**
+tmp/**
+.cache/**
+logs/**
 
-# Add your custom ignore patterns below
-# Example: page1.html
+# Custom ignore patterns
+.DS_Store
+thumbs.db
+*.log
+.env
+node_modules/**
+.git/**
+dist/**
+build/**
+.next/**
+coverage/**
+tmp/**
+.cache/**
+logs/**
+.DS_Store
+thumbs.db
+*.log
+.env
+dashboard/
+.ssh/

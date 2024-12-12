@@ -5,3 +5,5 @@ node_modules/
 Project/
 .ssh/
 .env
+dashboard/
+.cscc-deploy/

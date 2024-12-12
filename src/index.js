@@ -21,6 +21,7 @@ import { CommandRunner } from './commandRunner.js';
 import { browse } from './commands/browse.js';
 import { homedir } from 'os';
 import gradient from 'gradient-string';
+import { startDashboard } from './dashboard.js';
 
 // Fix __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -424,11 +425,16 @@ async function promptForDeployment() {
 program
   .command('deploy')
   .description('Deploy your web project')
-  .action(async () => {
+  .option('-d, --dashboard', 'Launch with dashboard')
+  .option('-n, --no-dashboard', 'Skip dashboard')
+  .action(async (options) => {
     try {
+      if (options.dashboard) {
+        await startDashboard();
+      }
       await promptForDeployment();
     } catch (error) {
-      console.error(chalk.red('Deployment failed:'), error.message);
+      console.error(chalk.red('Error in deployment:'), error.message);
       process.exit(1);
     }
   });
@@ -877,6 +883,18 @@ program
       await browse();
     } catch (error) {
       console.error(chalk.red('Error in browse mode:'), error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('dash')
+  .description('Start the deployment dashboard')
+  .action(async () => {
+    try {
+      await startDashboard();
+    } catch (error) {
+      console.error(chalk.red('Error starting dashboard:'), error.message);
       process.exit(1);
     }
   });
