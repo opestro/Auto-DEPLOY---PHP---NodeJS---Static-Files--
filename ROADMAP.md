@@ -1,7 +1,7 @@
 # CSDeploy Development Roadmap
 > Modern Deployment Technology Ecosystem
 
-## Current Version: 1.3.1
+## Current Version: 1.3.3
 Current features and capabilities of CSDeploy CLI:
 - SSH/FTP deployment
 - Command execution
