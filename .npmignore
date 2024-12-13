@@ -1,19 +1,16 @@
-.git/
-.github/
-.vscode/
-node_modules/
-test/
-docs/
-.ssh/
-id_rsa
-.ssh/*
-.cscc-deploy/
-.cscc-deploy/*
-.cscc-ignore
-Project/
-.gitignore
-.npmrc
-.eslintrc
-.prettierrc
-*.log 
-.deploycommands
+# Ignore everything
+*
+
+# But include these files/folders
+!dist/**
+!src/dashboardClient.js
+!package.json
+!README.md
+!LICENSE
+
+# Explicitly ignore node_modules even if they're in included directories
+**/node_modules/**
+
+# Ignore all source files in dashboard/client except the built files
+dashboard/client/*
+!dashboard/client/dist/**
