@@ -204,15 +204,15 @@ async function deployViaFTP(config, spinner, deploymentType = 'both') {
 
 async function deployViaSSH(config, spinner) {
   const ssh = new NodeSSH();
-  const fileTracker = new FileTracker(path.resolve(config.localPath));
 
   try {
     spinner.start('Analyzing files for deployment...');
+    const fileTracker = new FileTracker(path.resolve(config.localPath));
     
     // Get files that should be deployed
     const { deployableFiles, ignoredFiles, newHashes } = await fileTracker.getDeployableFiles();
 
-    // Log ignored files
+    // Show ignored files
     if (ignoredFiles.length > 0) {
       console.log(
         boxen(
@@ -235,23 +235,44 @@ async function deployViaSSH(config, spinner) {
       return;
     }
 
-    // Connect to SSH
+    // Connect to SSH with proper key handling
     spinner.start('Connecting to SSH server...');
     const sshConfig = {
       host: config.host,
-      username: config.username,
-      privateKey: config.privateKey ? fs.readFileSync(config.privateKey, 'utf8') : undefined,
-      passphrase: config.passphrase
+      username: config.username
     };
+
+    // Handle private key properly
+    if (config.privateKey) {
+      // Check if the privateKey is a path or content
+      if (config.privateKey.includes('BEGIN') && config.privateKey.includes('END')) {
+        // It's the key content
+        sshConfig.privateKey = config.privateKey;
+      } else {
+        // It's a path, try to read it
+        try {
+          const keyPath = config.privateKey
+            .replace(/^~/, homedir())
+            .replace(/\\/g, '/');
+          sshConfig.privateKey = await fs.readFile(keyPath, 'utf8');
+        } catch (error) {
+          throw new Error(`Failed to read private key file: ${error.message}`);
+        }
+      }
+    }
+
+    // Add passphrase if provided
+    if (config.passphrase) {
+      sshConfig.passphrase = config.passphrase;
+    }
 
     await ssh.connect(sshConfig);
     spinner.succeed('Connected to SSH server');
 
-    // Deploy each file
+    // Rest of your deployment code...
     for (const file of deployableFiles) {
       spinner.start(`Deploying ${file}...`);
       
-      // Double-check ignore status before deploying each file
       const shouldIgnore = await fileTracker.shouldIgnoreFile(file);
       if (shouldIgnore) {
         spinner.info(`Skipping ignored file: ${file}`);
@@ -261,25 +282,15 @@ async function deployViaSSH(config, spinner) {
       const localPath = path.join(config.localPath, file);
       const remotePath = path.join(config.remotePath, file);
       
-      // Ensure remote directory exists
-      const remoteDir = path.dirname(remotePath);
-      await ssh.execCommand(`mkdir -p "${remoteDir}"`);
-      
-      // Upload file
+      await ssh.execCommand(`mkdir -p "${path.dirname(remotePath)}"`);
       await ssh.putFile(localPath, remotePath);
       spinner.succeed(`Deployed ${file}`);
     }
 
-    // Update tracking only for deployed files
-    const deployedHashes = {};
-    for (const file of deployableFiles) {
-      if (newHashes[file]) {
-        deployedHashes[file] = newHashes[file];
-      }
-    }
-    await fileTracker.updateTrackedFiles(deployedHashes);
+    // Update tracking
+    await fileTracker.updateTrackedFiles(newHashes);
 
-    // Final summary
+    // Show deployment summary
     console.log(
       boxen(
         chalk.cyan('Successfully Deployed:\n') +
